@@ -6,29 +6,29 @@ from tqdm import tqdm
 
 def download_magnet(magnet_link, save_path="."):
     session = lt.session()
-    params = {
-        "save_path": save_path,
-        "storage_mode": lt.storage_mode_t.storage_mode_sparse,
-    }
+    settings = session.get_settings()
+    settings["enable_dht"] = True  # Enable DHT
+    session.apply_settings(settings)
 
     print("Adding magnet link...")
-    handle = lt.add_magnet_uri(session, magnet_link, params)
-    session.start_dht()
+    params = lt.parse_magnet_uri(magnet_link)
+    params.save_path = save_path
+    handle = session.add_torrent(params)
 
     print("Waiting for metadata...")
-    while not handle.has_metadata():
+    while not handle.status().has_metadata:
         time.sleep(1)
 
     print("Metadata received, starting download...")
 
     torrent_info = handle.get_torrent_info()
-    torrent_size = sum([f.size for f in torrent_info.files()])
+    torrent_size = sum(f.size for f in torrent_info.files())
 
     progress_bar = tqdm(
         total=torrent_size, unit="B", unit_scale=True, desc=torrent_info.name()
     )
 
-    while not handle.is_seed():
+    while not handle.status().is_seeding:
         status = handle.status()
         progress_bar.n = int(status.progress * torrent_size)
         progress_bar.refresh()
