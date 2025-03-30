@@ -4,14 +4,21 @@ import time
 import libtorrent as lt
 
 
-def download_torrent(magnet_link, save_path="."):
+def download_torrent(source, save_path="."):
     ses = lt.session({"listen_interfaces": "0.0.0.0:6881"})
     settings = ses.get_settings()
     settings["enable_dht"] = True  # Enable DHT
     ses.apply_settings(settings)
 
-    # Add magnet link
-    params = lt.parse_magnet_uri(magnet_link)
+    if source.startswith("magnet:?xt="):
+        # Handle magnet link
+        params = lt.parse_magnet_uri(source)
+    else:
+        # Handle .torrent file
+        info = lt.torrent_info(source)
+        params = lt.add_torrent_params()
+        params.ti = info
+
     params.save_path = save_path
     handle = ses.add_torrent(params)
     print("Fetching metadata, please wait...")
@@ -47,6 +54,9 @@ def download_torrent(magnet_link, save_path="."):
 
 
 if __name__ == "__main__":
-    magnet_link = "magnet:?xt=urn:btih:ea5e8e0db64a913c563df30e8535cdc2afc2f5fc"
-    magnet_link = input().strip()
-    download_torrent(magnet_link)
+    if len(sys.argv) > 1:
+        torrent_source = sys.argv[1]  # Use command-line argument as torrent file
+    else:
+        torrent_source = input("Enter magnet link: ").strip()
+
+    download_torrent(torrent_source)
